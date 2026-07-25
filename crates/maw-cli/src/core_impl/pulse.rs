@@ -194,7 +194,7 @@ fn pulse_add(options: &PulseAddOptions) -> Result<String, String> {
     ) {
         Ok(_) => stdout.push_str("\x1b[32m+\x1b[0m added to Master Board (#6)\n"),
         Err(error) => {
-            let _ = writeln!(stdout, "\x1b[33mwarn:\x1b[0m could not add to project board: {error}");
+            let _ = writeln!(stdout, "\x1b[90m(note: project board update skipped: {error})\x1b[0m");
         }
     }
 

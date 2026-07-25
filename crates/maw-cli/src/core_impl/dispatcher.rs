@@ -637,6 +637,9 @@ fn dispatch_bun_dev_plugin(plugin: &LoadedPlugin, ctx: &InvokeContext) -> CliOut
 }
 
 fn bun_dev_banner(plugin_name: &str) -> String {
+    if std::env::var_os("MAW_QUIET_DEV_BANNER").is_some() || std::env::var_os("MAW_QUIET").is_some() {
+        return String::new();
+    }
     format!(
         "⚠ [dev-tier: bun] {plugin_name} — TS runs unsandboxed; ship tier = WASM (maw plugin build)\n"
     )
