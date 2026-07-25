@@ -171,7 +171,19 @@ impl DiscordEnv {
     }
 
     pub(super) fn legacy_state_root(&self) -> PathBuf {
-        self.home.join(".claude/channels")
+        let claude = self.home.join(".claude/channels");
+        if claude.exists() {
+            return claude;
+        }
+        let gemini = self.home.join(".gemini/channels");
+        if gemini.exists() {
+            return gemini;
+        }
+        let grok = self.home.join(".grok/channels");
+        if grok.exists() {
+            return grok;
+        }
+        claude
     }
 }
 

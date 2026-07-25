@@ -66,8 +66,8 @@
                 &TmuxSendCommandOptions::default(),
                 3_000,
             )
-            .expect_err("claude-like pane blocked");
-        assert!(error.message.contains("claude-like"));
+            .expect_err("AI agent pane blocked");
+        assert!(error.message.contains("AI agent pane"));
         assert_eq!(client.runner.calls.len(), 1);
 
         let runner = FakeRunner::with_responses(vec![Ok("claude\n"), Ok("")]);
@@ -85,7 +85,7 @@
                 },
                 4_000,
             )
-            .expect("force bypasses claude-like pane");
+            .expect("force bypasses AI agent pane");
         assert_eq!(outcome, TmuxSendCommandOutcome::Sent);
         assert_eq!(
             client.runner.calls[1].1,

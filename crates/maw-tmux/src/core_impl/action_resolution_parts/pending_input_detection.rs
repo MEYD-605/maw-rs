@@ -102,7 +102,12 @@ enum PromptLine {
 }
 
 fn prompt_line(line: &str) -> PromptLine {
-    let trimmed = line.trim_start();
+    let mut trimmed = line.trim_start();
+    if trimmed.starts_with("hermes>") {
+        trimmed = trimmed["hermes>".len()..].trim_start();
+    } else if trimmed.starts_with("python>") {
+        trimmed = trimmed["python>".len()..].trim_start();
+    }
     let mut chars = trimmed.chars();
     let Some(marker) = chars.next() else {
         return PromptLine::None;
@@ -157,6 +162,15 @@ fn line_is_tui_chrome(line: &str) -> bool {
     let lower = trimmed.to_lowercase();
     lower.starts_with("gpt-")
         || lower.starts_with("claude")
+        || lower.starts_with("grok")
+        || lower.starts_with("gemini")
+        || lower.starts_with("antigravity")
+        || lower.starts_with("agy")
+        || lower.starts_with("hermes")
+
+        || lower.starts_with("codex")
+        || lower.starts_with("opencode")
+        || lower.starts_with("deepseek")
         || lower.starts_with("opus")
         || lower.starts_with("sonnet")
         || lower.starts_with("haiku")

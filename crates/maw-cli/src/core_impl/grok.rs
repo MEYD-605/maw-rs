@@ -299,7 +299,7 @@ async fn grok_gen_video(prompt: &str, img_path: Option<&str>) -> CliOutput {
     };
     
     let mut payload = serde_json::json!({
-        "model": "grok-imagine-video-1.5",
+        "model": "grok-imagine-video",
         "prompt": prompt,
         "duration": 6
     });

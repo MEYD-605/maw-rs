@@ -63,7 +63,7 @@
         let pane_current_command = self.display_pane_current_command(resolved)?;
         if is_claude_like_pane(Some(&pane_current_command)) && !options.force {
             return Err(TmuxError::new(format!(
-                "refusing to send: pane '{resolved}' is running '{pane_current_command}' (claude-like).\n  injecting keys would collide with the AI's turn.\n  pass --force to override (you really want to type into a live claude pane)"
+                "refusing to send: pane '{resolved}' is running '{pane_current_command}' (AI agent pane).\n  injecting keys would collide with the AI's turn.\n  pass --force to override (you really want to type into a live AI agent pane)"
             )));
         }
 
@@ -82,7 +82,10 @@
     /// Returns the runner error when tmux rejects the request.
     pub fn paste_buffer(&mut self, target: &str) -> Result<(), TmuxError> {
         self.runner
-            .run("paste-buffer", &["-t".to_owned(), target.to_owned()])
+            .run(
+                "paste-buffer",
+                &["-p".to_owned(), "-t".to_owned(), target.to_owned()],
+            )
             .map(|_| ())
     }
 

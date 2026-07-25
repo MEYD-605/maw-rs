@@ -121,16 +121,43 @@ fn has_non_space_after(bytes: &[u8]) -> bool {
     bytes.iter().any(|byte| !byte.is_ascii_whitespace())
 }
 
-/// Detect Claude Code or version-shaped Claude wrapper pane commands.
+/// AI CLI command keywords for pane-safety guards.
+///
+/// Ported in spirit from maw-js `DEFAULT_ENGINES.processNames` + fleet CLIs
+/// (agy/hermes/gemini) so non-Claude engines get the same inject protection.
+const AI_CLI_KEYWORDS: &[&str] = &[
+    // Claude family
+    "claude", "claude-code", "thclaude",
+    // xAI / Grok
+    "grok", "grok-macos",
+    // Google / Antigravity
+    "gemini", "agy", "antigravity",
+    // OpenAI / community
+    "codex", "opencode", "deepseek", "aider", "aichat", "crush",
+    // Fleet / other
+    "hermes", "hermes_cli", "qwen", "kiro", "cursor", "copilot", "mimo",
+];
+
+/// Detect AI-agent panes (Claude, Grok, Gemini/agy, Hermes, Codex, …)
+/// or version-shaped Claude wrapper pane commands (`2.1.111`).
+///
+/// Name kept as `is_claude_like_pane` for API stability; semantics are multi-engine.
 #[must_use]
 pub fn is_claude_like_pane(pane_current_command: Option<&str>) -> bool {
+    is_ai_cli_pane(pane_current_command)
+}
+
+/// Multi-engine AI pane detector (preferred name).
+#[must_use]
+pub fn is_ai_cli_pane(pane_current_command: Option<&str>) -> bool {
     let Some(command) = pane_current_command else {
         return false;
     };
     let command = command.to_lowercase();
-    if command.contains("claude") {
+    if AI_CLI_KEYWORDS.iter().any(|kw| command.contains(kw)) {
         return true;
     }
+    // bare `python`/`node` alone is too broad — only treat as agent when hermes/gemini markers appear above
     is_three_part_numeric_version(command.trim())
 }
 
