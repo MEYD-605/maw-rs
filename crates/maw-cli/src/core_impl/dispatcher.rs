@@ -975,10 +975,32 @@ mod ts_plugin_dispatch_decision_tests {
         std::fs::remove_dir_all(caller_dir).expect("cleanup caller");
         std::fs::remove_dir_all(shim_dir).expect("cleanup bun");
     }
+
+    #[test]
+    fn bun_dev_banner_decision_matrix() {
+        // OFF by default — an unset var is quiet, regardless of tty-ness (#780).
+        assert!(!bun_dev_banner_decision(None));
+        // Explicit opt-in, every truthy spelling, case- and space-tolerant.
+        assert!(bun_dev_banner_decision(Some("1")));
+        assert!(bun_dev_banner_decision(Some("true")));
+        assert!(bun_dev_banner_decision(Some("yes")));
+        assert!(bun_dev_banner_decision(Some("ON")));
+        assert!(bun_dev_banner_decision(Some("  on  ")));
+        // Explicit off, and anything unrecognized, stay off.
+        assert!(!bun_dev_banner_decision(Some("0")));
+        assert!(!bun_dev_banner_decision(Some("false")));
+        assert!(!bun_dev_banner_decision(Some("off")));
+        assert!(!bun_dev_banner_decision(Some("bogus")));
+        assert!(!bun_dev_banner_decision(Some("")));
+    }
 }
 
 fn dispatch_bun_dev_plugin(plugin: &LoadedPlugin, ctx: &InvokeContext) -> CliOutput {
-    let banner = bun_dev_banner(&plugin.manifest.name);
+    let banner = if bun_dev_banner_wanted() {
+        bun_dev_banner(&plugin.manifest.name)
+    } else {
+        String::new()
+    };
     let Some(entry_path) = &plugin.entry_path else {
         return CliOutput {
             code: 2,
@@ -1038,6 +1060,28 @@ fn dispatch_bun_dev_plugin(plugin: &LoadedPlugin, ctx: &InvokeContext) -> CliOut
 fn bun_dev_banner(plugin_name: &str) -> String {
     format!(
         "⚠ [dev-tier: bun] {plugin_name} — TS runs unsandboxed; ship tier = WASM (maw plugin build)\n"
+    )
+}
+
+/// The dev-tier banner is OFF by default (Nat, 2026-08-06). The tier is already
+/// discoverable on demand — `maw plugin info <name>` reports `kind`/`wasmPath`
+/// and `maw plugin ls -v` carries a runtime column — so announcing it on every
+/// invocation is noise rather than signal, and printing it unconditionally to
+/// stderr corrupted piped JSON for every bun-dev plugin (#778).
+/// `MAW_DEV_TIER_BANNER=1` (also `true`/`yes`/`on`, case- and space-insensitive)
+/// opts back in; anything else, including an unset var, stays quiet.
+fn bun_dev_banner_wanted() -> bool {
+    bun_dev_banner_decision(std::env::var("MAW_DEV_TIER_BANNER").ok().as_deref())
+}
+
+/// Pure decision behind [`bun_dev_banner_wanted`] — env in, bool out, so the
+/// opt-in matrix is unit-testable without touching a real fd or process env.
+fn bun_dev_banner_decision(override_env: Option<&str>) -> bool {
+    matches!(
+        override_env
+            .map(|raw| raw.trim().to_ascii_lowercase())
+            .as_deref(),
+        Some("1" | "true" | "yes" | "on")
     )
 }
 
