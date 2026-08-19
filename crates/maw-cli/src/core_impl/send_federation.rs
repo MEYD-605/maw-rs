@@ -1,9 +1,24 @@
 const DISPATCH_307: &[DispatcherEntry] = &[
-    DispatcherEntry { command: "hey", handler: Handler::Async(run_hey_async) },
-    DispatcherEntry { command: "send", handler: Handler::Async(run_send_async) },
-    DispatcherEntry { command: "health", handler: Handler::Async(run_health_async) },
-    DispatcherEntry { command: "reply", handler: Handler::Async(run_reply_async) },
-    DispatcherEntry { command: "rp", handler: Handler::Async(run_reply_async) },
+    DispatcherEntry {
+        command: "hey",
+        handler: Handler::Async(run_hey_async),
+    },
+    DispatcherEntry {
+        command: "send",
+        handler: Handler::Async(run_send_async),
+    },
+    DispatcherEntry {
+        command: "health",
+        handler: Handler::Async(run_health_async),
+    },
+    DispatcherEntry {
+        command: "reply",
+        handler: Handler::Async(run_reply_async),
+    },
+    DispatcherEntry {
+        command: "rp",
+        handler: Handler::Async(run_reply_async),
+    },
 ];
 
 #[derive(Debug, Clone, Default)]
@@ -28,7 +43,6 @@ enum SendMessageSource {
     Stdin,
 }
 
-
 #[derive(Debug, Clone, Default)]
 struct HeyConfig {
     node: Option<String>,
@@ -36,10 +50,11 @@ struct HeyConfig {
     route: RouteConfig,
 }
 
-
 fn run_hey_async(args: Vec<String>) -> Pin<Box<dyn Future<Output = CliOutput> + Send>> {
     Box::pin(async move {
-        if args.first().is_some_and(|arg| arg == "log") { return hey_log_command(&args[1..]); }
+        if args.first().is_some_and(|arg| arg == "log") {
+            return hey_log_command(&args[1..]);
+        }
         run_send_like_async_impl("hey", &args).await
     })
 }
@@ -47,7 +62,6 @@ fn run_hey_async(args: Vec<String>) -> Pin<Box<dyn Future<Output = CliOutput> + 
 fn run_send_async(args: Vec<String>) -> Pin<Box<dyn Future<Output = CliOutput> + Send>> {
     Box::pin(async move { run_send_like_async_impl("send", &args).await })
 }
-
 
 async fn run_send_like_async_impl(command: &str, raw_args: &[String]) -> CliOutput {
     if wants_help_before_positionals(raw_args, &["--from", "-f"]) {
@@ -63,7 +77,13 @@ async fn run_send_like_async_impl(command: &str, raw_args: &[String]) -> CliOutp
 
 async fn run_hey_in_process(query: &str, message: &str, acl_bypass: bool) -> CliOutput {
     let send_args = send_args_for_inbox_hey(query, message);
-    run_send_like_async_with_args("hey", send_args, acl_bypass, vec!["hey".to_owned(), query.to_owned(), message.to_owned()]).await
+    run_send_like_async_with_args(
+        "hey",
+        send_args,
+        acl_bypass,
+        vec!["hey".to_owned(), query.to_owned(), message.to_owned()],
+    )
+    .await
 }
 
 fn send_args_for_inbox_hey(query: &str, message: &str) -> SendArgs {
@@ -113,7 +133,9 @@ async fn run_send_like_async_with_args(
         return refusal;
     }
     match result {
-        RouteResult::Local { target } | RouteResult::SelfNode { target } if send_args.inbox == Some(true) => {
+        RouteResult::Local { target } | RouteResult::SelfNode { target }
+            if send_args.inbox == Some(true) =>
+        {
             send_local_inbox_only(
                 command,
                 &send_args.target,
@@ -124,17 +146,19 @@ async fn run_send_like_async_with_args(
                 send_args.from.as_deref(),
             )
         }
-        RouteResult::Local { target } | RouteResult::SelfNode { target } => send_local_message_with_audit(
-            command,
-            &mut tmux,
-            &target,
-            &send_args.target,
-            &send_args.text,
-            &config,
-            &sender_oracle,
-            send_args.from.as_deref(),
-            &audit_args,
-        ),
+        RouteResult::Local { target } | RouteResult::SelfNode { target } => {
+            send_local_message_with_audit(
+                command,
+                &mut tmux,
+                &target,
+                &send_args.target,
+                &send_args.text,
+                &config,
+                &sender_oracle,
+                send_args.from.as_deref(),
+                &audit_args,
+            )
+        }
         RouteResult::Peer {
             peer_url,
             target,
@@ -160,24 +184,6 @@ async fn run_send_like_async_with_args(
         },
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 fn parse_send_args(command: &str, argv: &[String]) -> Result<SendArgs, String> {
     parse_send_args_with_stdin(command, argv, || std::io::stdin().lock())
@@ -215,13 +221,21 @@ fn parse_send_args_with_stdin<R: std::io::Read, F: FnOnce() -> R>(
             }
             "-f" => {
                 let Some(value) = argv.get(index + 1) else {
-                    return Err(format!("{command}: missing -f value (path to message file)"));
+                    return Err(format!(
+                        "{command}: missing -f value (path to message file)"
+                    ));
                 };
-                send_set_message_source(command, &mut source, SendMessageSource::File(value.clone()))?;
+                send_set_message_source(
+                    command,
+                    &mut source,
+                    SendMessageSource::File(value.clone()),
+                )?;
                 index += 1;
             }
             "-" => send_set_message_source(command, &mut source, SendMessageSource::Stdin)?,
-            value if value.starts_with('-') => return Err(format!("{command}: unknown argument {value}")),
+            value if value.starts_with('-') => {
+                return Err(format!("{command}: unknown argument {value}"))
+            }
             value => positional.push(value.to_owned()),
         }
         index += 1;
@@ -235,7 +249,10 @@ fn parse_send_args_with_stdin<R: std::io::Read, F: FnOnce() -> R>(
     let text = match &source {
         SendMessageSource::Positional => {
             if positional.len() == 1 {
-                return Err(format!("{command}: missing message for '{}'", positional[0]));
+                return Err(format!(
+                    "{command}: missing message for '{}'",
+                    positional[0]
+                ));
             }
             positional[1..].join(" ")
         }
@@ -295,8 +312,9 @@ fn resolve_send_message_source<R: std::io::Read, F: FnOnce() -> R>(
     let content = match source {
         SendMessageSource::Positional => String::new(),
         SendMessageSource::File(path) => {
-            let file = std::fs::File::open(path)
-                .map_err(|error| format!("{command}: cannot read message file '{path}': {error}"))?;
+            let file = std::fs::File::open(path).map_err(|error| {
+                format!("{command}: cannot read message file '{path}': {error}")
+            })?;
             send_message_from_reader(command, &format!("file '{path}'"), file)?
         }
         SendMessageSource::Stdin => send_message_from_reader(command, "stdin", stdin())?,
@@ -313,7 +331,11 @@ fn send_message_from_reader(
         .map_err(|error| format!("{command}: cannot read message from {label}: {error}"))
 }
 
-fn send_require_nonempty_message(command: &str, target: &str, content: String) -> Result<String, String> {
+fn send_require_nonempty_message(
+    command: &str,
+    target: &str,
+    content: String,
+) -> Result<String, String> {
     if content.trim().is_empty() {
         return Err(format!("{command}: missing message for '{target}'"));
     }
@@ -321,15 +343,24 @@ fn send_require_nonempty_message(command: &str, target: &str, content: String) -
 }
 
 fn send_audit_args(command: &str, raw_args: &[String]) -> Vec<String> {
-    std::iter::once(command.to_owned()).chain(raw_args.iter().cloned()).collect()
+    std::iter::once(command.to_owned())
+        .chain(raw_args.iter().cloned())
+        .collect()
 }
 
 fn send_usage_error(command: &str, message: &str) -> CliOutput {
     if command == "hey" {
         if message == "hey: target and message are required" {
-            return CliOutput { code: 1, stdout: String::new(), stderr: format!("{}\n", send_usage(command)) };
+            return CliOutput {
+                code: 1,
+                stdout: String::new(),
+                stderr: format!("{}\n", send_usage(command)),
+            };
         }
-        if let Some(target) = message.strip_prefix("hey: missing message for '").and_then(|message| message.strip_suffix('\'')) {
+        if let Some(target) = message
+            .strip_prefix("hey: missing message for '")
+            .and_then(|message| message.strip_suffix('\''))
+        {
             return CliOutput {
                 code: 1,
                 stdout: String::new(),
@@ -353,7 +384,13 @@ fn send_usage(command: &str) -> String {
     )
 }
 
-fn send_error_code(command: &str) -> i32 { if command == "hey" { 1 } else { 2 } }
+fn send_error_code(command: &str) -> i32 {
+    if command == "hey" {
+        1
+    } else {
+        2
+    }
+}
 
 fn send_route_error(command: &str, query: &str, detail: &str, hint: Option<&str>) -> String {
     if command == "hey" {
@@ -363,24 +400,11 @@ fn send_route_error(command: &str, query: &str, detail: &str, hint: Option<&str>
         let hint = hint.map_or_else(String::new, |hint| format!("hint:  {hint}\n"));
         return format!("error: {detail}\n{hint}");
     }
-    hint.map_or_else(|| format!("{command}: {detail}\n"), |hint| format!("{command}: {detail}; {hint}\n"))
+    hint.map_or_else(
+        || format!("{command}: {detail}\n"),
+        |hint| format!("{command}: {detail}; {hint}\n"),
+    )
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 fn send_dry_run_output(command: &str, args: &SendArgs, result: &RouteResult) -> CliOutput {
     match result {
@@ -414,8 +438,6 @@ fn send_dry_run_output(command: &str, args: &SendArgs, result: &RouteResult) -> 
     }
 }
 
-
-
 fn send_local_message(
     command: &str,
     tmux: &mut TmuxClient<maw_tmux::CommandTmuxRunner>,
@@ -425,7 +447,17 @@ fn send_local_message(
     sender_oracle: &str,
     from: Option<&str>,
 ) -> CliOutput {
-    send_local_message_with_audit(command, tmux, target, target, text, config, sender_oracle, from, &[])
+    send_local_message_with_audit(
+        command,
+        tmux,
+        target,
+        target,
+        text,
+        config,
+        sender_oracle,
+        from,
+        &[],
+    )
 }
 
 /// Delivers the typed people-analysis intent through the same local pane
@@ -464,10 +496,60 @@ fn send_local_message_with_audit(
 ) -> CliOutput {
     let signature = match send_message_signature(config, sender_oracle, from, text) {
         Ok(signature) => signature,
-        Err(message) => return CliOutput { code: send_error_code(command), stdout: String::new(), stderr: format!("{command}: {message}\n") },
+        Err(message) => {
+            return CliOutput {
+                code: send_error_code(command),
+                stdout: String::new(),
+                stderr: format!("{command}: {message}\n"),
+            }
+        }
     };
     let display_from = send_display_from(from);
     let outbound = format_local_hey_message(text, config, sender_oracle, display_from.as_deref());
+    // A Hermes seat's tmux pane is its TUI process, not the gateway that talks
+    // to Discord. Typing into the pane lands in a different session than the one
+    // the operator is using, so prefer the gateway API when the seat exposes it
+    // and fall through to tmux for every other engine.
+    if let Some(api) = hermes_api_for_target(target) {
+        match hermes_api_deliver(&api, &outbound) {
+            Ok(reply) => {
+                send_record_success(
+                    command,
+                    audit_args,
+                    config,
+                    sender_oracle,
+                    from,
+                    query,
+                    &outbound,
+                    "hermes-api",
+                    signature.as_ref(),
+                );
+                let receipt = if reply.trim().is_empty() {
+                    format!("delivered → {target} [hermes-api:{}]\n", api.seat)
+                } else {
+                    format!(
+                        "delivered → {target} [hermes-api:{}]: {}\n",
+                        api.seat,
+                        reply.trim()
+                    )
+                };
+                return CliOutput {
+                    code: 0,
+                    stdout: receipt,
+                    stderr: String::new(),
+                };
+            }
+            Err(error) => {
+                // Falling back keeps a wedged gateway from making the seat
+                // unreachable, but staying silent about it would hide a real
+                // outage behind a normal-looking pane delivery.
+                eprintln!(
+                    "\x1b[33mwarning: hermes-api delivery to {} failed ({error}); falling back to pane\x1b[0m",
+                    api.seat
+                );
+            }
+        }
+    }
     if let Err(error) = tmux.send_text(target, &outbound) {
         return CliOutput {
             code: 1,
@@ -475,7 +557,17 @@ fn send_local_message_with_audit(
             stderr: format!("{command}: tmux send-text failed: {error}\n"),
         };
     }
-    send_record_success(command, audit_args, config, sender_oracle, from, query, &outbound, "local", signature.as_ref());
+    send_record_success(
+        command,
+        audit_args,
+        config,
+        sender_oracle,
+        from,
+        query,
+        &outbound,
+        "local",
+        signature.as_ref(),
+    );
     // #709: `delivered` must not stay silent when the resolved pane isn't
     // agent-shaped (window rename, pane replaced, agent closed) -- warn
     // rather than let a shell-prompt delivery look identical to a real one.
@@ -505,7 +597,16 @@ fn send_local_inbox_only(
     sender_oracle: &str,
     from: Option<&str>,
 ) -> CliOutput {
-    send_local_inbox_only_with(command, query, target, text, config, sender_oracle, from, &locate_find_oracle_repo_path)
+    send_local_inbox_only_with(
+        command,
+        query,
+        target,
+        text,
+        config,
+        sender_oracle,
+        from,
+        &locate_find_oracle_repo_path,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -537,12 +638,20 @@ fn send_local_inbox_only_with(
             stdout: format!("queued inbox {to} {filename}\n"),
             stderr: String::new(),
         },
-        Err(message) => CliOutput { code: 1, stdout: String::new(), stderr: format!("{command}: {message}\n") },
+        Err(message) => CliOutput {
+            code: 1,
+            stdout: String::new(),
+            stderr: format!("{command}: {message}\n"),
+        },
     }
 }
 
 fn send_success_output(command: &str, target: &str, outbound: &str) -> String {
-    if command == "hey" { format!("delivered → {target}: {outbound}\n") } else { format!("delivered {target}\n") }
+    if command == "hey" {
+        format!("delivered → {target}: {outbound}\n")
+    } else {
+        format!("delivered {target}\n")
+    }
 }
 
 /// An empty message body must never reach delivery (#695): a caller with no
@@ -565,7 +674,12 @@ fn send_empty_body_output(command: &str, text: &str) -> Option<CliOutput> {
 /// and refuses a `SelfNode` route outright. Kept as one pure function, tested
 /// directly against constructed `RouteResult` values, so the wiring itself is
 /// pinned — not just the message text each refusal produces.
-fn send_route_gate(command: &str, query: &str, text: &str, result: &RouteResult) -> Option<CliOutput> {
+fn send_route_gate(
+    command: &str,
+    query: &str,
+    text: &str,
+    result: &RouteResult,
+) -> Option<CliOutput> {
     if let Some(refusal) = send_empty_body_output(command, text) {
         return Some(refusal);
     }
@@ -587,7 +701,9 @@ fn send_route_gate(command: &str, query: &str, text: &str, result: &RouteResult)
 /// discriminant between the two (both are just `SelfNode { target }`), so
 /// the query string itself is the only signal available client-side.
 fn send_query_uses_explicit_local_prefix(query: &str) -> bool {
-    query.split_once(':').is_some_and(|(node, _)| node == "local")
+    query
+        .split_once(':')
+        .is_some_and(|(node, _)| node == "local")
 }
 
 /// `RouteResult::SelfNode` fires only when a query used the full cross-node
@@ -628,10 +744,17 @@ async fn send_peer_message(
             }
         }
     };
-    let signature = match send_message_signature(config, sender_oracle, args.from.as_deref(), &args.text) {
-        Ok(signature) => signature,
-        Err(message) => return CliOutput { code: send_error_code(command), stdout: String::new(), stderr: format!("{command}: {message}\n") },
-    };
+    let signature =
+        match send_message_signature(config, sender_oracle, args.from.as_deref(), &args.text) {
+            Ok(signature) => signature,
+            Err(message) => {
+                return CliOutput {
+                    code: send_error_code(command),
+                    stdout: String::new(),
+                    stderr: format!("{command}: {message}\n"),
+                }
+            }
+        };
     let peer_key = match load_peer_key() {
         Ok(key) => key,
         Err(message) => {
@@ -675,8 +798,23 @@ async fn send_peer_message(
     match client.send_peer(&request).await {
         Ok(response) => {
             let display_from = send_display_from(args.from.as_deref());
-            let outbound = format_local_hey_message(&args.text, config, sender_oracle, display_from.as_deref());
-            send_record_success(command, audit_args, config, sender_oracle, args.from.as_deref(), &args.target, &outbound, &format!("peer:{node}"), signature.as_ref());
+            let outbound = format_local_hey_message(
+                &args.text,
+                config,
+                sender_oracle,
+                display_from.as_deref(),
+            );
+            send_record_success(
+                command,
+                audit_args,
+                config,
+                sender_oracle,
+                args.from.as_deref(),
+                &args.target,
+                &outbound,
+                &format!("peer:{node}"),
+                signature.as_ref(),
+            );
             // #709: the receiving serve may have delivered into a pane that
             // is not agent-shaped -- surface that here too, not just on the
             // local delivery path, since this is the exact shape m5's field
@@ -695,7 +833,7 @@ async fn send_peer_message(
                 ),
                 stderr,
             }
-        },
+        }
         Err(message) => CliOutput {
             code: 1,
             stdout: String::new(),
@@ -703,7 +841,6 @@ async fn send_peer_message(
         },
     }
 }
-
 
 #[allow(clippy::too_many_arguments)]
 fn send_record_success(
@@ -735,71 +872,3 @@ fn send_record_success(
         sink.record(&record);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

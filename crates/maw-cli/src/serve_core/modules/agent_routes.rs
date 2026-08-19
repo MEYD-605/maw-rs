@@ -119,12 +119,24 @@ fn agents_render(panes: &[ServecoreAgentPane], node: Option<&str>, all: bool) ->
 fn agents_is_agent_pane(pane: &ServecoreAgentPane) -> bool {
     let title = pane.title.to_ascii_lowercase();
     let command = pane.command.to_ascii_lowercase();
-    title.contains("agent")
-        || title.contains("oracle")
-        || title.contains("codex")
-        || title.contains("claude")
-        || command.contains("codex")
-        || command.contains("claude")
+    const AGENT_KEYWORDS: &[&str] = &[
+        "agent",
+        "oracle",
+        "codex",
+        "claude",
+        "agy",
+        "gemini",
+        "grok",
+        "hermes",
+        "mimo",
+        "gmforge",
+        "antigravity",
+        "opencode",
+        "aider",
+    ];
+    AGENT_KEYWORDS
+        .iter()
+        .any(|&kw| title.contains(kw) || command.contains(kw))
         || agents_command_is_versioned_binary(&pane.command)
 }
 

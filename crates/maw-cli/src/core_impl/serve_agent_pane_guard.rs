@@ -14,16 +14,44 @@
 /// duplicate rather than reaching into `serve_core::modules::agent_routes`,
 /// since the two call sites (this file and the `/api/agents` listing) sit in
 /// different module trees.
+/// Kept as the context-free entry point so the existing test suite (and any
+/// caller without tmux session/window names to hand) keeps a stable signature.
+#[allow(dead_code)]
 fn serve_pane_looks_like_agent(command: &str, title: &str) -> bool {
+    serve_pane_looks_like_agent_with_context(command, title, None, None)
+}
+
+fn serve_pane_looks_like_agent_with_context(
+    command: &str,
+    title: &str,
+    session: Option<&str>,
+    window: Option<&str>,
+) -> bool {
     let command_lower = command.to_ascii_lowercase();
     let title_lower = title.to_ascii_lowercase();
-    title_lower.contains("agent")
-        || title_lower.contains("oracle")
-        || title_lower.contains("codex")
-        || title_lower.contains("claude")
-        || command_lower.contains("codex")
-        || command_lower.contains("claude")
-        || serve_command_is_versioned_binary(command)
+    let session_lower = session.map(str::to_ascii_lowercase).unwrap_or_default();
+    let window_lower = window.map(str::to_ascii_lowercase).unwrap_or_default();
+    const AGENT_KEYWORDS: &[&str] = &[
+        "agent",
+        "oracle",
+        "codex",
+        "claude",
+        "agy",
+        "gemini",
+        "grok",
+        "hermes",
+        "mimo",
+        "gmforge",
+        "antigravity",
+        "opencode",
+        "aider",
+    ];
+    AGENT_KEYWORDS.iter().any(|&kw| {
+        title_lower.contains(kw)
+            || command_lower.contains(kw)
+            || session_lower.contains(kw)
+            || window_lower.contains(kw)
+    }) || serve_command_is_versioned_binary(command)
 }
 
 /// A live Claude Code pane reports its own version string as the pane
@@ -53,10 +81,15 @@ fn serve_command_is_versioned_binary(command: &str) -> bool {
 /// against the session list before any pane lookup can work at all; without
 /// this step a naive string match against `resolved` silently never finds
 /// the pane (caught by this fix's own test before it shipped).
-fn serve_window_name_for_resolved_target(sessions: &[RouteSession], resolved: &str) -> Option<String> {
+fn serve_window_name_for_resolved_target(
+    sessions: &[RouteSession],
+    resolved: &str,
+) -> Option<String> {
     let (session_name, window_part) = resolved.split_once(':')?;
     let window_part = window_part.split('.').next().unwrap_or(window_part);
-    let session = sessions.iter().find(|session| session.name == session_name)?;
+    let session = sessions
+        .iter()
+        .find(|session| session.name == session_name)?;
     if let Ok(index) = window_part.parse::<u32>() {
         session
             .windows
@@ -81,7 +114,10 @@ fn serve_pane_for_resolved_target<'a>(
     window_name: &str,
 ) -> Option<&'a TmuxPane> {
     let prefix = format!("{session_name}:{window_name}.");
-    let mut matches: Vec<&TmuxPane> = panes.iter().filter(|pane| pane.target.starts_with(&prefix)).collect();
+    let mut matches: Vec<&TmuxPane> = panes
+        .iter()
+        .filter(|pane| pane.target.starts_with(&prefix))
+        .collect();
     matches.sort_by(|left, right| left.target.cmp(&right.target));
     matches.into_iter().next()
 }
@@ -99,7 +135,12 @@ fn serve_non_agent_pane_warning_from_panes(
     let (session_name, _) = resolved.split_once(':')?;
     let window_name = serve_window_name_for_resolved_target(sessions, resolved)?;
     let pane = serve_pane_for_resolved_target(panes, session_name, &window_name)?;
-    if serve_pane_looks_like_agent(&pane.command, &pane.title) {
+    if serve_pane_looks_like_agent_with_context(
+        &pane.command,
+        &pane.title,
+        Some(session_name),
+        Some(&window_name),
+    ) {
         return None;
     }
     Some(format!(
